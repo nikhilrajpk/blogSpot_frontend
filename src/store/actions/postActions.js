@@ -29,12 +29,20 @@ export const createPost = createAsyncThunk(
   'posts/createPost',
   async (formData, { rejectWithValue }) => {
     try {
+      console.log('Creating post with formData:');
+      for (let [key, value] of formData.entries()) {
+        console.log(`${key}: ${value instanceof File ? value.name : value}`);
+      }
       const response = await api.post('/posts/posts/', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data || 'Failed to create post');
+      console.error('Create post error:', error.response?.data);
+      const errorMessage = error.response?.data
+        ? Object.values(error.response.data).flat().join(' ') || 'Failed to create post'
+        : 'Failed to create post';
+      return rejectWithValue(errorMessage);
     }
   }
 );

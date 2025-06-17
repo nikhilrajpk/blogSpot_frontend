@@ -41,7 +41,7 @@ const Dashboard = () => {
       dispatch(showToast({ message: 'Post created successfully!', type: 'success' }));
       setFormData({ title: '', content: '', image: null });
     } catch (err) {
-      dispatch(showToast({ message: 'Failed to create post.', type: 'error' }));
+      dispatch(showToast({ message: err || 'Failed to create post.', type: 'error' }));
     }
   };
 
