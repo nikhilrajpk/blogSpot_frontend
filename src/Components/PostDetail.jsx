@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import { selectCurrentPost, selectPostLoading, selectPostError } from '../store/slices/postSlice';
@@ -6,6 +6,7 @@ import { fetchPost, likePost, unlikePost, createComment } from '../store/actions
 import { selectIsAuthenticated, selectCurrentUser } from '../store/slices/authSlice';
 import { showToast } from '../store/slices/toastSlice';
 import LoadingSpinners from '../utils/Loader';
+import { debounce } from 'lodash';
 
 const PostDetail = () => {
   const { id } = useParams();
@@ -20,9 +21,16 @@ const PostDetail = () => {
   const [hasLiked, setHasLiked] = useState(false);
   const [hasUnliked, setHasUnliked] = useState(false);
 
+  const debouncedFetchPost = useCallback(
+    debounce((postId) => {
+      dispatch(fetchPost(postId));
+    }, 300),[dispatch]
+  );
+
   useEffect(() => {
-    dispatch(fetchPost(id));
-  }, [dispatch, id]);
+    debouncedFetchPost(id);
+    return () => debouncedFetchPost.cancel();
+  }, [id, debouncedFetchPost]);
 
   useEffect(() => {
     if (post && currentUser) {
@@ -61,7 +69,7 @@ const PostDetail = () => {
       dispatch(showToast({ message: 'Comment submitted for review! It will appear once approved.', type: 'success' }));
       setCommentContent('');
       setCommentError('');
-      dispatch(fetchPost(id));
+      debouncedFetchPost(id); // Refresh post to ensure approved comments only
     } catch (err) {
       const errorMessage = err?.content?.[0] || err?.detail || 'Failed to post comment.';
       setCommentError(errorMessage);
@@ -84,7 +92,7 @@ const PostDetail = () => {
       dispatch(showToast({ message: 'Post liked!', type: 'success' }));
       setHasLiked(true);
       setHasUnliked(false);
-      dispatch(fetchPost(id));
+      debouncedFetchPost(id);
     } catch (err) {
       dispatch(showToast({ message: 'Failed to like post.', type: 'error' }));
     }
@@ -104,7 +112,7 @@ const PostDetail = () => {
       dispatch(showToast({ message: 'Post unliked!', type: 'success' }));
       setHasUnliked(true);
       setHasLiked(false);
-      dispatch(fetchPost(id));
+      debouncedFetchPost(id);
     } catch (err) {
       dispatch(showToast({ message: 'Failed to unlike post.', type: 'error' }));
     }
