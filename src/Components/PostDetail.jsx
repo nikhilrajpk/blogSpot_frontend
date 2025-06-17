@@ -1,54 +1,71 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
-import { selectCurrentPost, selectPostLoading, selectPostError } from '../store/slices/postSlice';
-import { fetchPost, likePost, unlikePost, createComment } from '../store/actions/postActions';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import api from '../utils/api';
 import { selectIsAuthenticated, selectCurrentUser } from '../store/slices/authSlice';
 import { showToast } from '../store/slices/toastSlice';
+import { createComment } from '../store/actions/postActions';
 import LoadingSpinners from '../utils/Loader';
-import { debounce } from 'lodash';
+
+const fetchPost = async (postId) => {
+  const response = await api.get(`/posts/posts/${postId}/`);
+  console.log('Fetched post:', response.data);
+  return response.data;
+};
+
+const likePost = async (postId) => {
+  const response = await api.post(`/posts/posts/${postId}/like/`);
+  return response.data;
+};
+
+const unlikePost = async (postId) => {
+  const response = await api.post(`/posts/posts/${postId}/unlike/`);
+  return response.data;
+};
 
 const PostDetail = () => {
   const { id } = useParams();
   const dispatch = useDispatch();
-  const post = useSelector(selectCurrentPost);
-  const loading = useSelector(selectPostLoading);
-  const error = useSelector(selectPostError);
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const currentUser = useSelector(selectCurrentUser);
+  const queryClient = useQueryClient();
   const [commentContent, setCommentContent] = useState('');
   const [commentError, setCommentError] = useState('');
-  const [hasLiked, setHasLiked] = useState(false);
-  const [hasUnliked, setHasUnliked] = useState(false);
 
-  const debouncedFetchPost = useCallback(
-    debounce((postId) => {
-      dispatch(fetchPost(postId));
-    }, 300),[dispatch]
-  );
+  const { data: post, isLoading, isError, error } = useQuery({
+    queryKey: ['post', id],
+    queryFn: () => fetchPost(id),
+  });
 
-  useEffect(() => {
-    debouncedFetchPost(id);
-    return () => debouncedFetchPost.cancel();
-  }, [id, debouncedFetchPost]);
+  const likeMutation = useMutation({
+    mutationFn: likePost,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['post', id]);
+      queryClient.invalidateQueries(['posts']);
+      dispatch(showToast({ message: 'Post liked!', type: 'success' }));
+    },
+    onError: () => {
+      dispatch(showToast({ message: 'Failed to like post.', type: 'error' }));
+    },
+  });
 
-  useEffect(() => {
-    if (post && currentUser) {
-      setHasLiked(post.likes.includes(currentUser.id));
-      setHasUnliked(post.unlikes.includes(currentUser.id));
-    }
-  }, [post, currentUser]);
+  const unlikeMutation = useMutation({
+    mutationFn: unlikePost,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['post', id]);
+      queryClient.invalidateQueries(['posts']);
+      dispatch(showToast({ message: 'Post unliked!', type: 'success' }));
+    },
+    onError: () => {
+      dispatch(showToast({ message: 'Failed to unlike post.', type: 'error' }));
+    },
+  });
 
   const validateComment = (content) => {
-    if (!content.trim()) {
-      return 'Comment cannot be empty.';
-    }
-    if (content.length < 5) {
-      return 'Comment must be at least 5 characters long.';
-    }
-    if (content.length > 500) {
-      return 'Comment cannot exceed 500 characters.';
-    }
+    if (!content.trim()) return 'Comment cannot be empty.';
+    if (content.length < 5) return 'Comment must be at least 5 characters long.';
+    if (content.length > 500) return 'Comment cannot exceed 500 characters.';
     return '';
   };
 
@@ -66,10 +83,10 @@ const PostDetail = () => {
     }
     try {
       await dispatch(createComment({ postId: id, content: commentContent.trim() })).unwrap();
-      dispatch(showToast({ message: 'Comment submitted for review! It will appear once approved.', type: 'success' }));
+      dispatch(showToast({ message: 'Comment submitted for review!', type: 'success' }));
       setCommentContent('');
       setCommentError('');
-      debouncedFetchPost(id); // Refresh post to ensure approved comments only
+      queryClient.invalidateQueries(['post', id]);
     } catch (err) {
       const errorMessage = err?.content?.[0] || err?.detail || 'Failed to post comment.';
       setCommentError(errorMessage);
@@ -78,7 +95,7 @@ const PostDetail = () => {
     }
   };
 
-  const handleLike = async () => {
+  const handleLike = () => {
     if (!isAuthenticated) {
       dispatch(showToast({ message: 'Please log in to like posts.', type: 'warning' }));
       return;
@@ -87,18 +104,10 @@ const PostDetail = () => {
       dispatch(showToast({ message: 'You have already liked this post.', type: 'warning' }));
       return;
     }
-    try {
-      await dispatch(likePost(id)).unwrap();
-      dispatch(showToast({ message: 'Post liked!', type: 'success' }));
-      setHasLiked(true);
-      setHasUnliked(false);
-      debouncedFetchPost(id);
-    } catch (err) {
-      dispatch(showToast({ message: 'Failed to like post.', type: 'error' }));
-    }
+    likeMutation.mutate(id);
   };
 
-  const handleUnlike = async () => {
+  const handleUnlike = () => {
     if (!isAuthenticated) {
       dispatch(showToast({ message: 'Please log in to unlike posts.', type: 'warning' }));
       return;
@@ -107,20 +116,15 @@ const PostDetail = () => {
       dispatch(showToast({ message: 'You have already unliked this post.', type: 'warning' }));
       return;
     }
-    try {
-      await dispatch(unlikePost(id)).unwrap();
-      dispatch(showToast({ message: 'Post unliked!', type: 'success' }));
-      setHasUnliked(true);
-      setHasLiked(false);
-      debouncedFetchPost(id);
-    } catch (err) {
-      dispatch(showToast({ message: 'Failed to unlike post.', type: 'error' }));
-    }
+    unlikeMutation.mutate(id);
   };
 
-  if (loading) return <LoadingSpinners />;
-  if (error) return <div className="text-red-600 text-center">Error: {error.message || 'Failed to load post'}</div>;
-  if (!post) return null;
+  const hasLiked = post && currentUser && post.likes.includes(currentUser.id);
+  const hasUnliked = post && currentUser && post.unlikes.includes(currentUser.id);
+
+  if (isLoading) return <LoadingSpinners />;
+  if (isError) return <div className="text-red-600 text-center">Error: {error.message || 'Failed to load post'}</div>;
+  if (!post) return <div className="text-gray-600 text-center">Post not found.</div>;
 
   return (
     <div className="container mx-auto p-4">
@@ -129,19 +133,21 @@ const PostDetail = () => {
         <img src={post.image} alt={post.title} className="w-full max-w-2xl mx-auto h-auto rounded-lg mb-4" />
       )}
       <p className="text-gray-600 mb-4">{post.content}</p>
-      <p className="text-sm text-gray-500 mb-2">By: {post.author.username} | {new Date(post.created_at).toLocaleDateString()}</p>
+      <p className="text-sm text-gray-500 mb-2">
+        By: {post.author?.username || 'Unknown'} | {new Date(post.created_at).toLocaleDateString()}
+      </p>
       <div className="flex space-x-4 mb-6">
         <button
           onClick={handleLike}
-          disabled={hasLiked}
-          className={`text-blue-600 hover:text-blue-700 font-semibold ${hasLiked ? 'opacity-50 cursor-not-allowed' : ''}`}
+          disabled={hasLiked || likeMutation.isLoading}
+          className={`text-blue-600 hover:text-blue-700 font-semibold ${hasLiked || likeMutation.isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           Like ({post.likes_count})
         </button>
         <button
           onClick={handleUnlike}
-          disabled={hasUnliked}
-          className={`text-red-600 hover:text-red-700 font-semibold ${hasUnliked ? 'opacity-50 cursor-not-allowed' : ''}`}
+          disabled={hasUnliked || unlikeMutation.isLoading}
+          className={`text-red-600 hover:text-red-700 font-semibold ${hasUnliked || unlikeMutation.isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           Unlike ({post.unlikes_count})
         </button>
@@ -154,7 +160,9 @@ const PostDetail = () => {
           {post.comments.map((comment) => (
             <li key={comment.id} className="bg-white p-4 rounded-lg shadow-sm">
               <p className="text-gray-600">{comment.content}</p>
-              <p className="text-sm text-gray-400">By {comment.author.username} | {new Date(comment.created_at).toLocaleDateString()}</p>
+              <p className="text-sm text-gray-400">
+                By {comment.author?.username || 'Unknown'} | {new Date(comment.created_at).toLocaleDateString()}
+              </p>
             </li>
           ))}
         </ul>
@@ -176,7 +184,7 @@ const PostDetail = () => {
         {commentError && <p className="text-red-500 text-sm mt-1">{commentError}</p>}
         <button
           type="submit"
-          disabled={loading || commentError}
+          disabled={commentError}
           className="bg-emerald-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-emerald-700 disabled:opacity-50"
         >
           Post Comment

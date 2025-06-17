@@ -60,26 +60,26 @@ export const createComment = createAsyncThunk(
   }
 );
 
-export const likePost = createAsyncThunk(
-  'posts/likePost',
-  async (postId, { rejectWithValue }) => {
-    try {
-      const response = await api.post(`/posts/posts/${postId}/like/`);
-      return { postId, status: response.data.status };
-    } catch (error) {
-      return rejectWithValue(error.response?.data || 'Failed to like post');
-    }
-  }
-);
+// export const likePost = createAsyncThunk(
+//   'posts/likePost',
+//   async (postId, { rejectWithValue }) => {
+//     try {
+//       const response = await api.post(`/posts/posts/${postId}/like/`);
+//       return { postId, status: response.data.status };
+//     } catch (error) {
+//       return rejectWithValue(error.response?.data || 'Failed to like post');
+//     }
+//   }
+// );
 
-export const unlikePost = createAsyncThunk(
-  'posts/unlikePost',
-  async (postId, { rejectWithValue }) => {
-    try {
-      const response = await api.post(`/posts/posts/${postId}/unlike/`);
-      return { postId, status: response.data.status };
-    } catch (error) {
-      return rejectWithValue(error.response?.data || 'Failed to unlike post');
-    }
-  }
-);
+// export const unlikePost = createAsyncThunk(
+//   'posts/unlikePost',
+//   async (postId, { rejectWithValue }) => {
+//     try {
+//       const response = await api.post(`/posts/posts/${postId}/unlike/`);
+//       return { postId, status: response.data.status };
+//     } catch (error) {
+//       return rejectWithValue(error.response?.data || 'Failed to unlike post');
+//     }
+//   }
+// );

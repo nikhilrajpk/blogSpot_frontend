@@ -1,5 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { fetchPosts, fetchPost, createPost, createComment, likePost, unlikePost } from '../actions/postActions';
+import { fetchPosts, createPost, createComment,} from '../actions/postActions';
 
 const initialState = {
   posts: [],
@@ -29,17 +29,17 @@ const postSlice = createSlice({
         state.error = action.payload;
         state.loading = false;
       })
-      .addCase(fetchPost.pending, (state) => {
-        state.loading = true;
-      })
-      .addCase(fetchPost.fulfilled, (state, action) => {
-        state.currentPost = action.payload;
-        state.loading = false;
-      })
-      .addCase(fetchPost.rejected, (state, action) => {
-        state.error = action.payload;
-        state.loading = false;
-      })
+      // .addCase(fetchPost.pending, (state) => {
+      //   state.loading = true;
+      // })
+      // .addCase(fetchPost.fulfilled, (state, action) => {
+      //   state.currentPost = action.payload;
+      //   state.loading = false;
+      // })
+      // .addCase(fetchPost.rejected, (state, action) => {
+      //   state.error = action.payload;
+      //   state.loading = false;
+      // })
       .addCase(createPost.pending, (state) => {
         state.loading = true;
       })
@@ -54,46 +54,43 @@ const postSlice = createSlice({
       .addCase(createComment.pending, (state) => {
         state.loading = true;
       })
-      .addCase(createComment.fulfilled, (state, action) => {
-        if (state.currentPost && state.currentPost.id === action.payload.post) {
-          state.currentPost.comments.push(action.payload);
-        }
+      .addCase(createComment.fulfilled, (state) => {
         state.loading = false;
       })
       .addCase(createComment.rejected, (state, action) => {
         state.error = action.payload;
         state.loading = false;
       })
-      .addCase(likePost.fulfilled, (state, action) => {
-        const { postId } = action.payload;
-        const post = state.posts.find((p) => p.id === postId) || (state.currentPost?.id === postId ? state.currentPost : null);
-        if (post && !post.likes.includes(action.meta.arg.userId)) {
-          post.likes_count += 1;
-          post.likes.push(action.meta.arg.userId);
-          if (post.unlikes_count > 0 && post.unlikes.includes(action.meta.arg.userId)) {
-            post.unlikes_count -= 1;
-            post.unlikes = post.unlikes.filter((id) => id !== action.meta.arg.userId);
-          }
-        }
-      })
-      .addCase(likePost.rejected, (state, action) => {
-        state.error = action.payload;
-      })
-      .addCase(unlikePost.fulfilled, (state, action) => {
-        const { postId } = action.payload;
-        const post = state.posts.find((p) => p.id === postId) || (state.currentPost?.id === postId ? state.currentPost : null);
-        if (post && !post.unlikes.includes(action.meta.arg.userId)) {
-          post.unlikes_count += 1;
-          post.unlikes.push(action.meta.arg.userId);
-          if (post.likes_count > 0 && post.likes.includes(action.meta.arg.userId)) {
-            post.likes_count -= 1;
-            post.likes = post.likes.filter((id) => id !== action.meta.arg.userId);
-          }
-        }
-      })
-      .addCase(unlikePost.rejected, (state, action) => {
-        state.error = action.payload;
-      });
+      // .addCase(likePost.fulfilled, (state, action) => {
+      //   const { postId } = action.payload;
+      //   const post = state.posts.find((p) => p.id === postId) || (state.currentPost?.id === postId ? state.currentPost : null);
+      //   if (post && !post.likes.includes(action.meta.arg.userId)) {
+      //     post.likes_count += 1;
+      //     post.likes.push(action.meta.arg.userId);
+      //     if (post.unlikes_count > 0 && post.unlikes.includes(action.meta.arg.userId)) {
+      //       post.unlikes_count -= 1;
+      //       post.unlikes = post.unlikes.filter((id) => id !== action.meta.arg.userId);
+      //     }
+      //   }
+      // })
+      // .addCase(likePost.rejected, (state, action) => {
+      //   state.error = action.payload;
+      // })
+      // .addCase(unlikePost.fulfilled, (state, action) => {
+      //   const { postId } = action.payload;
+      //   const post = state.posts.find((p) => p.id === postId) || (state.currentPost?.id === postId ? state.currentPost : null);
+      //   if (post && !post.unlikes.includes(action.meta.arg.userId)) {
+      //     post.unlikes_count += 1;
+      //     post.unlikes.push(action.meta.arg.userId);
+      //     if (post.likes_count > 0 && post.likes.includes(action.meta.arg.userId)) {
+      //       post.likes_count -= 1;
+      //       post.likes = post.likes.filter((id) => id !== action.meta.arg.userId);
+      //     }
+      //   }
+      // })
+      // .addCase(unlikePost.rejected, (state, action) => {
+      //   state.error = action.payload;
+      // });
   },
 });
 
